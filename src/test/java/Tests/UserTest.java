@@ -6,7 +6,6 @@ import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import static io.restassured.RestAssured.given;
@@ -43,6 +42,16 @@ public class UserTest extends BaseTest {
         long responseTime=response.getTime();
         System.out.println("Response Time is "+responseTime);
     }
+
+    @Test(dataProvider = "MissingFieldsBody",dataProviderClass = utils.TestData.class)
+    public void TC_CreateUser_MissingFields(String missingBodyField){
+        given().contentType(ContentType.JSON)
+                .body(missingBodyField)
+                .when()
+                .post(createUserEndpoint)
+                .then()
+                .statusCode(400);
+    }
     @Test(dependsOnMethods = "TC_CreateUser_Valid")
     public void checkFunctionality(){
      Response response= given()
@@ -51,6 +60,14 @@ public class UserTest extends BaseTest {
                 .get(getUserEndpoint+"user1");
      System.out.println(response.getBody().asString());
         Assert.assertEquals(response.statusCode(),200);
+    }
+    @Test(dataProvider = "validCreateUserRequestBody",dataProviderClass = utils.TestData.class,dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_addExistingUser(String existingRequestBody){
+        given().contentType(ContentType.JSON)
+                .when()
+                .post(createUserEndpoint)
+                .then()
+                .statusCode(400);
 
     }
     @Test
@@ -116,6 +133,28 @@ public class UserTest extends BaseTest {
                 .then()
                 .statusCode(200)
                 .body(matchesJsonSchemaInClasspath("utils/schemas/userSchema.json"));
-    }/////////////////////////////////////////////////utils/schemas/userSchema.json
+    }
+
+    @Test
+    public void TC_getUser_NotFound(){
+        given().contentType(ContentType.JSON)
+                .when()
+                .get(getUserEndpoint+"UserNotFoundAtAll")
+                .then()
+                .statusCode(404);
+    }
+    @Test
+    public void TC_getUser_NoParameter(){
+        given().contentType(ContentType.JSON)
+                .when()
+                .get(getUserEndpoint)
+                .then()
+                .statusCode(400);
+    }
+    @Test
+    public void TC_CheckResponseBody_getUser(){
+
+    }
+
 
 }

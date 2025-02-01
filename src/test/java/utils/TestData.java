@@ -35,4 +35,15 @@ public class TestData {
                     "]"}
     };
     }
+    @DataProvider(name = "MissingFieldsBody")
+    public Object[][] getMissingFieldsBody(){
+    return new Object[][]{{"[\n" +
+            "  {\n" +
+            "    \"id\": 0,\n" +
+            "    \"email\": \"user1@x.com\",\n" +
+            "    \"password\": \"string\",\n" +
+            "    \"userStatus\": 0\n" +
+            "  }\n" +
+            "]"}};
+    }
 }
