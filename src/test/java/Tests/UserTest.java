@@ -1,33 +1,29 @@
-package org.example;
+package Tests;
 
+import base.BaseTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import util.JsonUtil;
-import workshops.api.User;
-
-import java.io.IOException;
 
 import static io.restassured.RestAssured.given;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.hamcrest.Matchers.equalTo;
 
-public class UserTest {
-    String baseURI = "https://petstore.swagger.io/v2";
+public class UserTest extends BaseTest {
     String createUserEndpoint = "/user/createWithList";
     String getUserEndpoint = "/user/";
 
-    String validRequestBody = "[{\"id\":1,\"username\":\"user1\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"user1@example.com\",\"password\":\"password123\",\"phone\":\"1234567890\",\"userStatus\":1}]";
-    String invalidRequestBody = "[{\"id\":1,\"username\":\"\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"user1@example.com\",\"password\":\"password123\",\"phone\":\"1234567890\",\"userStatus\":1}]";
-
     @BeforeClass
     public void setUp() {
-        RestAssured.baseURI = baseURI;
+        System.out.println("Hello from User API Testing");
     }
 
-    @Test
-    public void TC_CreateUser_Valid() {
+    @Test(dataProvider = "validCreateUserRequestBody",dataProviderClass = utils.TestData.class)
+    public void TC_CreateUser_Valid(String validRequestBody) {
         given()
                 .contentType(ContentType.JSON)
                 .body(validRequestBody)
@@ -38,10 +34,37 @@ public class UserTest {
                 .body("code", equalTo(200))
                 .body("type", equalTo("unknown"))
                 .body("message", equalTo("ok"));
+        Response response=RestAssured
+                .given()
+                .contentType(ContentType.JSON)
+                .body(validRequestBody)
+                .when()
+                .post(createUserEndpoint);
+        long responseTime=response.getTime();
+        System.out.println("Response Time is "+responseTime);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void checkFunctionality(){
+     Response response= given()
+                .contentType(ContentType.JSON)
+                .when()
+                .get(getUserEndpoint+"user1");
+     System.out.println(response.getBody().asString());
+        Assert.assertEquals(response.statusCode(),200);
+
+    }
+    @Test
+    public void TC_ValidateStatusCodeMissedBodyCreateUser(){
+        given()
+                .contentType(ContentType.JSON)
+                .when()
+                .post(createUserEndpoint)
+                .then()
+                .statusCode(400);
     }
 
-    @Test
-    public void TC_CreateUser_Invalid() {
+    @Test(dataProvider = "invalidCreateUserRequestBody",dataProviderClass = utils.TestData.class)
+    public void TC_CreateUser_Invalid(String invalidRequestBody) {
         given()
                 .contentType(ContentType.JSON)
                 .body(invalidRequestBody)
@@ -84,8 +107,15 @@ public class UserTest {
                 .assertThat()
                 .statusCode(400);
     }
-    @Test
-    public void test() throws IOException {
-        User user= JsonUtil.readJsonFromFile("src/test/testData/user/user.json", User.class);
-    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void validateUserSchemas(){
+        given()
+                .contentType(ContentType.JSON)
+                .when()
+                .get(getUserEndpoint+"user1")
+                .then()
+                .statusCode(200)
+                .body(matchesJsonSchemaInClasspath("utils/schemas/userSchema.json"));
+    }/////////////////////////////////////////////////utils/schemas/userSchema.json
+
 }
