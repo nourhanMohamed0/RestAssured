@@ -14,7 +14,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 public class UserTest extends BaseTest {
     String createUserEndpoint = "/user/createWithList";
-    String getUserEndpoint = "/user/";
+    String UserEndpoint = "/user/";
 
     @BeforeClass
     public void setUp() {
@@ -57,7 +57,7 @@ public class UserTest extends BaseTest {
      Response response= given()
                 .contentType(ContentType.JSON)
                 .when()
-                .get(getUserEndpoint+"user1");
+                .get(UserEndpoint+"user1");
      System.out.println(response.getBody().asString());
         Assert.assertEquals(response.statusCode(),200);
     }
@@ -96,7 +96,7 @@ public class UserTest extends BaseTest {
         String nonExistingUser = "nonExistingUser";
         given()
                 .when()
-                .get(getUserEndpoint + nonExistingUser)
+                .get(UserEndpoint + nonExistingUser)
                 .then()
                 .statusCode(404)
                 .body("code", equalTo(1))
@@ -108,7 +108,7 @@ public class UserTest extends BaseTest {
     public void TC_HeadersValidation() {
         given()
                 .when()
-                .get(getUserEndpoint + "user1")
+                .get(UserEndpoint + "user1")
                 .then()
                 .assertThat()
                 .headers("access-control-allow-headers", equalTo("Content-Type,api_key,Authorization"),
@@ -119,7 +119,7 @@ public class UserTest extends BaseTest {
     public void TC_InvalidUsernameValidation() {
         given()
                 .when()
-                .get(getUserEndpoint + "@#  #$%")
+                .get(UserEndpoint + "@#  #$%")
                 .then()
                 .assertThat()
                 .statusCode(400);
@@ -129,7 +129,7 @@ public class UserTest extends BaseTest {
         given()
                 .contentType(ContentType.JSON)
                 .when()
-                .get(getUserEndpoint+"user1")
+                .get(UserEndpoint+"user1")
                 .then()
                 .statusCode(200)
                 .body(matchesJsonSchemaInClasspath("utils/schemas/userSchema.json"));
@@ -139,7 +139,7 @@ public class UserTest extends BaseTest {
     public void TC_getUser_NotFound(){
         given().contentType(ContentType.JSON)
                 .when()
-                .get(getUserEndpoint+"UserNotFoundAtAll")
+                .get(UserEndpoint+"UserNotFoundAtAll")
                 .then()
                 .statusCode(404);
     }
@@ -147,13 +147,172 @@ public class UserTest extends BaseTest {
     public void TC_getUser_NoParameter(){
         given().contentType(ContentType.JSON)
                 .when()
-                .get(getUserEndpoint)
+                .get(UserEndpoint)
                 .then()
                 .statusCode(400);
     }
-    @Test
-    public void TC_CheckResponseBody_getUser(){
+    @Test(dependsOnMethods = "TC_CreateUser_Valid",dataProviderClass = utils.TestData.class,dataProvider = "validCreateUserRequestBody")
+    public void TC_CheckResponseBody_getUser(String as) {
+        Response response=given().contentType(ContentType.JSON)
+                .when()
+                .get(UserEndpoint+"user1");
+       String expectedBody=as.replaceAll("\\s","");
+       String actualBody=(response.body().asString()).replaceAll("\\s","");
+        Assert.assertEquals(expectedBody.replaceAll("^\\[|\\]$",""),actualBody);
+    }
+@Test(dependsOnMethods = "TC_CreateUser_Valid",dataProviderClass = utils.TestData.class,dataProvider = "validCreateUserRequestBody")
+    public void TC_CheckSpaceValidation_getUser(String as) {
+        Response response=given().contentType(ContentType.JSON)
+                .when()
+                .get(UserEndpoint+"        user1          ");
+       String expectedBody=as.replaceAll("\\s","");
+       String actualBody=(response.body().asString()).replaceAll("\\s","");
+        Assert.assertEquals(expectedBody.replaceAll("^\\[|\\]$",""),actualBody);
+    }
+    @Test(dataProvider = "updatedBody",dataProviderClass = utils.TestData.class)
+    public void TC_CheckSuccessfulUpdate_putUser(String updatedBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(updatedBody)
+                .when()
+                .put(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),200);
+    }
+    @Test(dataProvider = "invalidUpdatedBody",dataProviderClass = utils.TestData.class)
+    public void TC_CheckInvalidBodyStatusCode_putUser(String invalidUpdatedBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(invalidUpdatedBody)
+                .when()
+                .put(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),400);
+    }
+    @Test(dataProvider = "updatedBody",dataProviderClass = utils.TestData.class)
+    public void TC_CheckNotFoundUserStatusCode_putUser(String updatedBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(updatedBody)
+                .when()
+                .put(UserEndpoint+"NotFoundUser");
+        Assert.assertEquals(response.statusCode(),404);
+    }
 
+    @Test(dataProvider = "updatedBody",dataProviderClass = utils.TestData.class)
+    public void TC_CheckWrongMethodStatusCode_putUser(String updatedBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(updatedBody)
+                .when()
+                .post(UserEndpoint+"NotFoundUser");
+        Assert.assertEquals(response.statusCode(),405);
+    }
+    @Test(dataProvider = "MissingFieldsBody",dataProviderClass = utils.TestData.class,dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckMissingFieldsStatusCode_putUser(String MissingFieldsBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(MissingFieldsBody)
+                .when()
+                .post(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),405);
+    }
+    @Test(dataProvider = "invalidMailFormat",dataProviderClass = utils.TestData.class,dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckInvalidMailFormatStatusCode_putUser(String invalidMailFormatBody){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(invalidMailFormatBody)
+                .when()
+                .post(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),400);
+    }
+    @Test(dataProvider = "invalidDataTypeFormat",dataProviderClass = utils.TestData.class,dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckInvalidDataTypeFormatStatusCode_putUser(String invalidDataTypeFormat){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body(invalidDataTypeFormat)
+                .when()
+                .put(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),400);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckMissingBody_putUser(){
+        Response response=given().
+                contentType(ContentType.JSON)
+                .body("{}")
+                .when()
+                .put(UserEndpoint+"user1");
+        Assert.assertEquals(response.statusCode(),400);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckDeleteUserSuccessfully_deleteUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .delete(UserEndpoint+"user1");
+        given().contentType(ContentType.JSON)
+                .when()
+                .get(UserEndpoint+"user1")
+                .then()
+                .assertThat().statusCode(404);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckDeleteNotExistingUser_deleteUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .delete(UserEndpoint+"NotExistingUser")
+                .then()
+                .assertThat().statusCode(404);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid",dataProviderClass = utils.TestData.class,dataProvider = "veryLongUserName")
+    public void TC_CheckDeleteVeryLongUser_deleteUser(String veryLongUserName){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .delete(UserEndpoint+veryLongUserName)
+                .then()
+                .assertThat().statusCode(414);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckSuccessfulLoginUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .queryParam("username","user1")
+                .queryParam("password","password123")
+                .get(UserEndpoint+"login")
+                .then()
+                .assertThat().statusCode(200);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckInvalidUsernameLoginUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .queryParam("username","notLoggedIn")
+                .queryParam("password","password123")
+                .get(UserEndpoint+"login")
+                .then()
+                .assertThat().statusCode(400);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckInvalidPasswordLoginUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .queryParam("username","user1")
+                .queryParam("password","NotValidPassword")
+                .get(UserEndpoint+"login")
+                .then()
+                .assertThat().statusCode(400);
+    }
+    @Test(dependsOnMethods = "TC_CreateUser_Valid")
+    public void TC_CheckSuccessfulLogoutUser(){
+        given().
+                contentType(ContentType.JSON)
+                .when()
+                .get(UserEndpoint+"logout")
+                .then()
+                .assertThat().statusCode(200);
     }
 
 
